@@ -1,4 +1,4 @@
-using MyBackend;
+using Wordapp;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);

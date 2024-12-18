@@ -1,4 +1,4 @@
-namespace MyBackend;
+namespace Wordapp;
 
 using Npgsql;
 

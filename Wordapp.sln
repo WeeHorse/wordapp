@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyBackend", "MyBackend.csproj", "{C94285AD-AF6C-4E33-872D-FA85AC81E96C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wordapp", "Wordapp.csproj", "{C94285AD-AF6C-4E33-872D-FA85AC81E96C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
