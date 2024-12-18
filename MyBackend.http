@@ -1,0 +1,8 @@
+@MyBackend_HostAddress = http://localhost:5185
+
+# Default route
+GET {{MyBackend_HostAddress}}/testword/
+Accept: application/json
+
+
+###
