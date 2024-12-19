@@ -1,4 +1,4 @@
-INSERT INTO words VALUES ('A-aktie'),
+INSERT INTO words COLUMNS(word) VALUES ('A-aktie'),
 ('A-aktien'),
 ('A-aktiens'),
 ('A-aktier'),

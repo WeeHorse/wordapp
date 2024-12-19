@@ -1,4 +1,4 @@
-INSERT INTO words VALUES ('muslim'),
+INSERT INTO words COLUMNS(word) VALUES ('muslim'),
 ('muslimen'),
 ('muslimens'),
 ('muslimer'),

@@ -37,7 +37,7 @@ public class Actions
     }
 
 
-// Process incomming NewWord  from client
+    // Process incomming NewWord  from client
     async Task<bool> NewWord(string word, string clientId)
     {
         await using var cmd = db.CreateCommand("INSERT INTO words (word, clientid) VALUES ($1, $2)");
