@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Wordapp;
 using Npgsql;
 
@@ -9,10 +10,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-Database database = new();
-NpgsqlDataSource db = database.Connection();
-
-// Configure the HTTP request pipeline.
+// Use Swagger during development
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -20,43 +18,51 @@ if (app.Environment.IsDevelopment())
 }
 
 // Serve static files from wwwroot
-app.UseDefaultFiles(); // Enables serving index.html as the default file
-app.UseStaticFiles(); // Serves static files like CSS, JS, images, etc.
+app.UseDefaultFiles(); // Serving index.html as the default file
+app.UseStaticFiles(); // Serves other static files like CSS, JS, images, etc.
 
-// app.UseHttpsRedirection();
-
-async Task<bool> TestWord(string word)
+// Middleware to set or retrieve the client identifier cookie
+app.Use(async (context, next) =>
 {
-    await using var cmd = db.CreateCommand("SELECT EXISTS (SELECT 1 FROM words WHERE word = $1)");
-    cmd.Parameters.AddWithValue(word);
-    bool result = (bool)(await cmd.ExecuteScalarAsync() ?? false);
-    return result;
-}
+    const string clientIdCookieName = "ClientId";
 
-app.MapGet("/test-word/{word}", TestWord);
-
-async Task<bool> NewWord(string word)
-{
-    await using var cmd = db.CreateCommand("INSERT INTO words (word) VALUES ($1)");
-    cmd.Parameters.AddWithValue(word);
-    int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
-    return rowsAffected > 0; // Return true if the insert was successful
-}
-
-app.MapPost("/new-word", async (HttpContext context) =>
-{
-    var requestBody = await context.Request.ReadFromJsonAsync<WordRequest>();
-    if (requestBody?.Word is null)
+    if (!context.Request.Cookies.TryGetValue(clientIdCookieName, out var clientId))
     {
-        return Results.BadRequest("Word is required.");
+        // Generate a new unique client ID
+        clientId = GenerateUniqueClientId();
+        context.Response.Cookies.Append(clientIdCookieName, clientId, new CookieOptions
+        {
+            HttpOnly = true, // Prevent client-side JavaScript from accessing the cookie
+            Secure = false,   // Use only over HTTPS (false for dev)
+            SameSite = SameSiteMode.Strict,
+            MaxAge = TimeSpan.FromDays(365) // Cookie expiration
+        });
+        Console.WriteLine($"New client ID generated and set: {clientId}");
     }
-    bool success = await NewWord(requestBody.Word);
-    return success ? Results.Ok("Word added successfully.") : Results.StatusCode(500);
+    else
+    {
+        Console.WriteLine($"Existing client ID found: {clientId}");
+    }
+
+    // Pass to the next middleware
+    await next();
 });
+
+// Helper function to generate a unique client ID
+static string GenerateUniqueClientId()
+{
+    using var rng = RandomNumberGenerator.Create();
+    var bytes = new byte[16];
+    rng.GetBytes(bytes);
+    return Convert.ToBase64String(bytes);
+}
+
+// Methods for processing routes from Actions class
+Actions actions = new(app);
 
 app.Run();
 
-// Model to parse the POST request body
+// Model to parse the NewWord POST route request body
 public class WordRequest
 {
     public string Word { get; set; }
