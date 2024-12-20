@@ -12,11 +12,13 @@ public class Actions
         db = database.Connection();
         
         // Map incomming TestWord GET route from client to method
+        // http://localhost:5185/test-word/Smurfa
         app.MapGet("/test-word/{word}", TestWord);
 
         // Map incomming NewWord POST route from client to method
         app.MapPost("/new-word", async (HttpContext context) =>
         {
+            // WordRequest here, is a class that defines the post requestBody format
             var requestBody = await context.Request.ReadFromJsonAsync<WordRequest>();
             if (requestBody?.Word is null)
             {

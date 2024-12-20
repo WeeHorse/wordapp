@@ -61,9 +61,3 @@ static string GenerateUniqueClientId()
 Actions actions = new(app);
 
 app.Run();
-
-// Model to parse the NewWord POST route request body
-public class WordRequest
-{
-    public string Word { get; set; }
-}
