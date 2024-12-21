@@ -1,3 +1,5 @@
+// KODEXEMPEL 1
+
 $('#word-check').on('submit', testWord) // onsubmit for the testWord form
 
 async function testWord(e) {
@@ -27,3 +29,20 @@ async function saveWord(e) {
   console.log('data', data);
   $('#message').text(newWord + ' lades till i databasen')
 }
+
+// KODEXEMPEL 2 - tictactoe
+
+let players = [{name: "Ben", tile: "X"}, {name: "Bob", tile: "O"}];
+
+$('#tictactoe>input').on('click', playTile);
+function playTile(){
+  console.log($(this).index())
+  $(this).val(players[0].tile)
+  togglePlayer();
+}
+
+function togglePlayer(){
+  players.push(players.shift());
+  $('#message2').text("It's your turn now " + players[0].name + " to lay an " + players[0].tile);
+}
+
