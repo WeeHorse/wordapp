@@ -1,3 +1,3 @@
 namespace Wordapp;
 
-public record Player(string Name, string clientId);
+public record Player(string name, string clientId);

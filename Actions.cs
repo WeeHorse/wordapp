@@ -10,7 +10,7 @@ public class Actions
     public Actions(WebApplication app)
     {
         db = database.Connection();
-        
+
         // Map incomming TestWord GET route from client to method
         // http://localhost:5185/test-word/Smurfa
         app.MapGet("/test-word/{word}", TestWord);
@@ -27,25 +27,25 @@ public class Actions
             bool success = await NewWord(requestBody.Word, context.Request.Cookies["ClientId"]);
             return success ? Results.Ok("Word added successfully.") : Results.StatusCode(500);
         });
-        
+
         // Map incomming request to add a player to a game
         app.MapPost("/add-player", async (HttpContext context) =>
         {
             // WordRequest here, is a class that defines the post requestBody format
             var requestBody = await context.Request.ReadFromJsonAsync<Player>();
-            if (requestBody?.Name is null)
+            if (requestBody?.name is null)
             {
-                return Results.BadRequest("Name is required.");
+                return Results.BadRequest("name is required.");
             }
-            bool success = await AddPlayer(requestBody.Name, context.Request.Cookies["ClientId"]);
+            bool success = await AddPlayer(requestBody.name, context.Request.Cookies["ClientId"]);
             return success ? Results.Ok("Player added successfully.") : Results.StatusCode(500);
         });
-        
+
         // Map incomming request to get players for a game
         app.MapGet("/players", GetPlayers);
-        
+
     }
-    
+
     // Process incomming TestWord from client
     async Task<bool> TestWord(string word)
     {
@@ -65,8 +65,8 @@ public class Actions
         int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
         return rowsAffected > 0; // Return true if the insert was successful
     }
-    
-    // Process incomming AddPlayer  from client
+
+    // Process incomming AddPlayer from client
     async Task<bool> AddPlayer(string name, string clientId)
     {
         await using var cmd = db.CreateCommand("INSERT INTO players (name, clientid) VALUES ($1, $2)");
@@ -75,8 +75,8 @@ public class Actions
         int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
         return rowsAffected > 0; // Return true if the insert was successful
     }
-    
-    // Process incomming GetPlayers  from client
+
+    // Process incomming GetPlayers from client
     async Task<List<Player>> GetPlayers()
     {
         var players = new List<Player>();
