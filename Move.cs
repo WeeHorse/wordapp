@@ -1,4 +1,4 @@
 namespace Wordapp;
 
 // (Note that a normal class would do just as well, this is just an example of how a record is typically defined for a post body)
-public record Player(string name, string clientId, int Id);
+public record Move(int tile, int player, int game);

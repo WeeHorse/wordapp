@@ -35,7 +35,7 @@ async function saveWord(e) {
 let players = [];
 
 async function getPlayers() {
-  const response = await fetch('/players/'); // get (read)
+  const response = await fetch('/players/1'); // get (read) players from a game (id)
   console.log('response', response);
   players = await response.json();
   console.log('fetched players', players)
@@ -74,10 +74,39 @@ async function addPlayer(e) {
   getPlayers();
 }
 
+$('#add-game').on('submit', addGame) // onsubmit for the addGame form
+
+async function addGame(e) {
+  e.preventDefault(); // not reload page on form submit
+  const response = await fetch('/add-game/', { // post (save new)
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ player_1: 1, player_2: 2 }) // hard coded values, change
+  });
+  console.log('response', response);
+  const data = await response.json();
+  console.log('data', data);
+  $('#message').text('Nytt spel lades till i databasen')
+  // load players (so we get this last addition)
+  getPlayers();
+}
+
 $('#tictactoe>input').on('click', playTile);
-function playTile() {
-  console.log($(this).index())
+async function playTile() {
+  let tileIndex = $(this).index();
   $(this).val(players[0].tile)
+  const response = await fetch('/play-tile/', { // post (save new move)
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      player: players[0].id,
+      tile: tileIndex,
+      game: 1 // hard coded
+    })
+  });
+  console.log('response', response);
+  const data = await response.json();
+  console.log('data', data);
   togglePlayer();
 }
 

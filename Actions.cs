@@ -42,7 +42,19 @@ public class Actions
         });
 
         // Map incomming request to get players for a game
-        app.MapGet("/players", GetPlayers);
+        app.MapGet("/players/{id}", GetPlayers);
+        
+        // Map incomming request to play a tile (make a move) in a game
+        app.MapPost("/play-tile", async (HttpContext context) =>
+        {
+            var requestBody = await context.Request.ReadFromJsonAsync<Move>();
+            if (requestBody?.player is null || requestBody?.game is null || requestBody?.tile is null)
+            {
+                return Results.BadRequest("player (id), game (id) and tile (index) is required.");
+            }
+            bool success = await PlayTile(requestBody.tile, requestBody.player, requestBody.game);
+            return success ? Results.Ok("A new move was made, played a tile.") : Results.StatusCode(500);
+        });
 
     }
 
@@ -69,6 +81,7 @@ public class Actions
     // Process incomming AddPlayer from client
     async Task<bool> AddPlayer(string name, string clientId)
     {
+        // check if player already exists
         await using var cmd = db.CreateCommand("INSERT INTO players (name, clientid) VALUES ($1, $2)");
         cmd.Parameters.AddWithValue(name);
         cmd.Parameters.AddWithValue(clientId);
@@ -77,19 +90,41 @@ public class Actions
     }
 
     // Process incomming GetPlayers from client
-    async Task<List<Player>> GetPlayers()
+    async Task<List<Player>> GetPlayers(int id)
     {
         var players = new List<Player>();
-        await using var cmd = db.CreateCommand("SELECT * FROM players"); // get all players
+        await using var cmd = db.CreateCommand("SELECT * FROM players, games WHERE games.id = $1 AND players.id IN (games.player_1, games.player_2)"); // get players from a game
+        cmd.Parameters.AddWithValue(id);
         await using (var reader = await cmd.ExecuteReaderAsync())
         {
             while (await reader.ReadAsync())
             {
-                players.Add(new Player(reader.GetString(0), reader.GetString(1)));
+                players.Add(new Player(reader.GetString(0), reader.GetString(1), reader.GetInt32(2)));
             }
         }
 
         return players;
+    }
+    
+    // Process incomming PlayTile from client
+    async Task<bool> PlayTile(int tile, int player, int game)
+    {
+        await using var cmd1 = db.CreateCommand("SELECT EXISTS (SELECT 1 FROM moves WHERE tile = $1 AND game = $3)"); // fast if move exists in table query 
+        cmd1.Parameters.AddWithValue(tile);
+        cmd1.Parameters.AddWithValue(game);
+        bool result = (bool)(await cmd1.ExecuteScalarAsync() ?? false); // Execute fast if move exists in table query 
+        Console.WriteLine($"Player {player} played at {tile} in game {game} with result {result}");
+        if (result)
+        {
+            return false; // Return false if the move was unsuccessful
+        }
+        
+        await using var cmd = db.CreateCommand("INSERT INTO moves (tile, player, game) VALUES ($1, $2, $3)");
+        cmd.Parameters.AddWithValue(tile);
+        cmd.Parameters.AddWithValue(player);
+        cmd.Parameters.AddWithValue(game);
+        int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
+        return rowsAffected > 0; // Return true if the move was successful
     }
 }
 
