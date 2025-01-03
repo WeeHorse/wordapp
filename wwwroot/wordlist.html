@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordapp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="wordlist.js" defer></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<nav>
+    <a href="index.html">Om kodexemplen</a> | <strong>Word list</strong> | <a href="three-in-a-row.html">3-in-a-row</a>
+</nav>
+<h2>Word list</h2>
+
+<form id="word-check">
+    <label>Skriv ett ord för att se om det finns i databasen</label>
+    <input type="text" name="word" placeholder="type a word">
+    <input type="submit" value="check">
+</form>
+
+<form id="new-word">
+    <label>Skriv ett ord för att lägga till det i databasen</label>
+    <input type="text" name="new-word" placeholder="type a new word">
+    <input type="submit" value="save">
+</form>
+
+<p id="message"></p>
+
+</body>
+
+</html>

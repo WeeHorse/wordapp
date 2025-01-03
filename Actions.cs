@@ -109,7 +109,8 @@ public class Actions
     // Process incomming PlayTile from client
     async Task<bool> PlayTile(int tile, int player, int game)
     {
-        await using var cmd1 = db.CreateCommand("SELECT EXISTS (SELECT 1 FROM moves WHERE tile = $1 AND game = $3)"); // fast if move exists in table query 
+        Console.WriteLine($"Playing tile {tile} from {player} to {game}");
+        await using var cmd1 = db.CreateCommand("SELECT EXISTS (SELECT 1 FROM moves WHERE tile = $1 AND game = $2)"); // fast if move exists in table query 
         cmd1.Parameters.AddWithValue(tile);
         cmd1.Parameters.AddWithValue(game);
         bool result = (bool)(await cmd1.ExecuteScalarAsync() ?? false); // Execute fast if move exists in table query 
