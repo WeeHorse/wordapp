@@ -62,6 +62,7 @@ async function addGame(e) {
 $('#tictactoe>input').on('click', playTile);
 async function playTile() {
   let tileIndex = $(this).index();
+  let game = 1 // hard coded
   $(this).val(players[0].tile)
   const response = await fetch('/play-tile/', { // post (save new move)
     method: 'POST',
@@ -69,13 +70,25 @@ async function playTile() {
     body: JSON.stringify({ 
       player: players[0].id,
       tile: tileIndex,
-      game: 1 // hard coded
+      game: game 
     })
   });
   console.log('response', response);
   const data = await response.json();
   console.log('data', data);
-  togglePlayer();
+  await checkWin(players[0], game);
+}
+
+async function checkWin(player, game) {
+  const response = await fetch('/check-win/' + player + '/' + game);
+  console.log('response', response);
+  const win = await response.json();
+  console.log('checked win', win);
+  if(win){
+    $('#message').text(player.name + ' vann med ' + win)
+  }else {
+    togglePlayer(0);
+  }
 }
 
 function togglePlayer() {

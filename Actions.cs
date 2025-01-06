@@ -48,14 +48,16 @@ public class Actions
         app.MapPost("/play-tile", async (HttpContext context) =>
         {
             var requestBody = await context.Request.ReadFromJsonAsync<Move>();
-            if (requestBody?.player is null || requestBody?.game is null || requestBody?.tile is null)
+            if (requestBody?.player is null || requestBody?.tile is null ||requestBody?.game is null)
             {
-                return Results.BadRequest("player (id), game (id) and tile (index) is required.");
+                return Results.BadRequest("player (id), tile (index) and game (id) is required.");
             }
-            bool success = await PlayTile(requestBody.tile, requestBody.player, requestBody.game);
+            bool success = await PlayTile(requestBody.player, requestBody.tile, requestBody.game);
             return success ? Results.Ok("A new move was made, played a tile.") : Results.StatusCode(500);
         });
-
+        
+        // Map incomming request to check win for a player in a game
+        app.MapGet("/check-win/{player}/{game}", CheckWin);       
     }
 
     // Process incomming TestWord from client
@@ -107,7 +109,7 @@ public class Actions
     }
     
     // Process incomming PlayTile from client
-    async Task<bool> PlayTile(int tile, int player, int game)
+    async Task<bool> PlayTile(int player, int tile, int game)
     {
         Console.WriteLine($"Playing tile {tile} from {player} to {game}");
         await using var cmd1 = db.CreateCommand("SELECT EXISTS (SELECT 1 FROM moves WHERE tile = $1 AND game = $2)"); // fast if move exists in table query 
@@ -125,7 +127,63 @@ public class Actions
         cmd.Parameters.AddWithValue(player);
         cmd.Parameters.AddWithValue(game);
         int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
-        return rowsAffected > 0; // Return true if the move was successful
+        if (rowsAffected > 0)
+        {
+            return true; // Return true if the move was successful   
+        }
+        return false;
     }
+
+    async Task<Tuple<int, int, int>?> CheckWin(int player, int game)
+    {
+        
+        // Defining wins, using a list of Tuples with indices. A Tuple is a read only, fixed size, list-type structure.
+        // The indices are a serialization of the tiles in our tictactoe game with the top left index being 0 and the bottom right being 8.
+        // Serializing game boards like this is a common and practical solution. 
+        var winningVectors = new List<Tuple<int, int, int>>
+        {
+            // Horizontal wins 
+            Tuple.Create(0, 1, 2),
+            Tuple.Create(3, 4, 5),
+            Tuple.Create(6, 7, 8),
+            
+            // Vertical wins
+            Tuple.Create(0, 3, 6),
+            Tuple.Create(1, 4, 7),
+            Tuple.Create(2, 5, 8),
+            
+            // Diagonal wins
+            Tuple.Create(0, 4, 8),
+            Tuple.Create(2, 4, 6)
+        };
+        
+        // Get all the tiles the current player has placed so far in the game
+        var currentPlayerTiles = new List<int>();
+        await using var cmd = db.CreateCommand("SELECT tile FROM moves WHERE game = $1 AND player = $2");
+        cmd.Parameters.AddWithValue(game);
+        cmd.Parameters.AddWithValue(player);
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                currentPlayerTiles.Add(reader.GetInt32(0));
+            }
+        }
+        
+        // Now lets see if the current player has a win
+        foreach (var vector in winningVectors)
+        {
+            if (currentPlayerTiles.Contains(vector.Item1) && currentPlayerTiles.Contains(vector.Item2) &&
+                currentPlayerTiles.Contains(vector.Item3))
+            {
+                Console.WriteLine($"Winning vector: {vector.Item1}, {vector.Item2}, {vector.Item3}");
+                // if we have a match, return the winning vector as a confirmation of the win
+                return vector; 
+            }
+        }
+        // if we don't have a match, return null
+        return null;
+    }
+    
 }
 
