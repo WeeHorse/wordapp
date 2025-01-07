@@ -1,6 +1,9 @@
 // KODEXEMPEL 2 - tictactoe
 
 let players = [];
+let thisPlayer = {};
+let currentGame = {};
+
 
 async function getPlayers() {
   const response = await fetch('/players/1'); // get (read) players from a game (id)
@@ -11,7 +14,7 @@ async function getPlayers() {
     $('#message2').text("We need TWO players, you only have " + players.length)
     return;
   }
-  // let's use the last two players in the array
+  // let's use the last two players in the array (not proper)
   players[0] = players[players.length - 2];
   players[1] = players[players.length - 1];
   players.length = 2;
@@ -37,8 +40,9 @@ async function addPlayer(e) {
   console.log('response', response);
   const data = await response.json();
   console.log('data', data);
-  $('#message').text(player.name + ' lades till i databasen')
-  // load players (so we get this last addition)
+  thisPlayer = data;
+  $('#message').text(thisPlayer.name + ' lades till i databasen')
+  // load players (so we get any update or new player)
   getPlayers();
 }
 
@@ -49,14 +53,20 @@ async function addGame(e) {
   const response = await fetch('/add-game/', { // post (save new)
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ player_1: 1, player_2: 2 }) // hard coded values, change
+    body: JSON.stringify({ 
+      gameCode: $('[name="gamecode"]').val(),
+      player_1: thisPlayer.id,
+      player_2: 2   // hard coded value, change
+    })
   });
   console.log('response', response);
   const data = await response.json();
   console.log('data', data);
-  $('#message').text('Nytt spel lades till i databasen')
+  currentGame = data;
+  $('#message2').text('Spelets anslutningskod är ' + currentGame.gamecode)
   // load players (so we get this last addition)
   getPlayers();
+  activateFieldsForCurrentPlayer();
 }
 
 $('#tictactoe>input').on('click', playTile);
@@ -80,19 +90,32 @@ async function playTile() {
 }
 
 async function checkWin(player, game) {
-  const response = await fetch('/check-win/' + player + '/' + game);
+  const response = await fetch('/check-win/' + player.id + '/' + game);
   console.log('response', response);
   const win = await response.json();
   console.log('checked win', win);
   if(win){
-    $('#message').text(player.name + ' vann med ' + win)
+    $('#message').text(player.name + ' vann med raden ' + win.join(' - '))
   }else {
     togglePlayer(0);
   }
 }
 
+function activateFieldsForCurrentPlayer(){
+  if(players[0].id == thisPlayer.id){
+    $('#tictactoe input').prop('disabled', false); // your turn
+  }else{
+    $('#tictactoe input').prop('disabled', true); // not your turn
+  }
+}
+
 function togglePlayer() {
   players.push(players.shift());
-  $('#message2').text("It's " + players[0].name + "s turn now, to lay an " + players[0].tile);
+  if(players[0].id == thisPlayer.id){
+    $('#message').text("It's your turn now, " + players[0].name + " to lay an " + players[0].tile);
+  }else{
+    $('#message').text("It's " + players[0].name + "s turn to lay an " + players[0].tile);
+  }
+  activateFieldsForCurrentPlayer()
 }
 

@@ -27,18 +27,31 @@ public class Actions
             bool success = await NewWord(requestBody.Word, context.Request.Cookies["ClientId"]);
             return success ? Results.Ok("Word added successfully.") : Results.StatusCode(500);
         });
+        
+        // Map incomming request to add a game
+        app.MapPost("/add-game", async (HttpContext context) =>
+        {
+            // Game here, is a class that defines the post requestBody format
+            var requestBody = await context.Request.ReadFromJsonAsync<Game>();
+            if (requestBody?.player_1 is null || requestBody?.player_2 is null || requestBody?.gamecode is null)
+            {
+                return Results.BadRequest("player_1, player_2 and gamecode are required.");
+            }
+            Game game = await AddGame(requestBody.player_1, requestBody.player_2, requestBody.gamecode);
+            return (game.id > 0) ? Results.Ok(game) : Results.StatusCode(500);
+        });
 
         // Map incomming request to add a player to a game
         app.MapPost("/add-player", async (HttpContext context) =>
         {
-            // WordRequest here, is a class that defines the post requestBody format
+            // Player here, is a class that defines the post requestBody format
             var requestBody = await context.Request.ReadFromJsonAsync<Player>();
             if (requestBody?.name is null)
             {
                 return Results.BadRequest("name is required.");
             }
-            bool success = await AddPlayer(requestBody.name, context.Request.Cookies["ClientId"]);
-            return success ? Results.Ok("Player added successfully.") : Results.StatusCode(500);
+            Player player = await AddPlayer(requestBody.name, context.Request.Cookies["ClientId"]);
+            return (player.Id > 0) ? Results.Ok(player) : Results.StatusCode(500);
         });
 
         // Map incomming request to get players for a game
@@ -81,14 +94,71 @@ public class Actions
     }
 
     // Process incomming AddPlayer from client
-    async Task<bool> AddPlayer(string name, string clientId)
+    async Task<Player> AddPlayer(string name, string clientId)
     {
         // check if player already exists
-        await using var cmd = db.CreateCommand("INSERT INTO players (name, clientid) VALUES ($1, $2)");
+        await using var cmd = db.CreateCommand("SELECT * FROM players WHERE name = $1"); // check if player exists
         cmd.Parameters.AddWithValue(name);
-        cmd.Parameters.AddWithValue(clientId);
-        int rowsAffected = await cmd.ExecuteNonQueryAsync(); // Returns the number of rows affected
-        return rowsAffected > 0; // Return true if the insert was successful
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                var dbClientId = reader.GetString(1);
+                if (clientId.Equals(dbClientId) == false)
+                {
+                    // save new clientId to db
+                    await using var cmd2 = db.CreateCommand("UPDATE players SET clientid = $1 WHERE id = $2");
+                    cmd2.Parameters.AddWithValue(clientId);
+                    cmd2.Parameters.AddWithValue(reader.GetInt32(2));
+                    await cmd2.ExecuteNonQueryAsync(); // Perform update
+                }
+                return new Player(reader.GetString(0), clientId, reader.GetInt32(2));
+            }
+        }
+        // if player did not exist we create them
+        await using var cmd3 = db.CreateCommand("INSERT INTO players (name, clientid) VALUES ($1, $2) RETURNING id");
+        cmd3.Parameters.AddWithValue(name);
+        cmd3.Parameters.AddWithValue(clientId);
+        var result = await cmd3.ExecuteScalarAsync();
+        if (result != null && int.TryParse(result.ToString(), out int lastInsertedId))
+        {
+            return new Player(name, clientId, lastInsertedId);
+        }
+        else
+        {
+            Console.WriteLine("Failed to retrieve the last inserted ID.");
+            return null;
+        }
+    }
+
+    async Task<Game> AddGame(int player_1, int player_2, string gamecode)
+    {
+        // check if game already exists
+        await using var cmd = db.CreateCommand("SELECT * FROM games WHERE gamecode = $1"); // check if game exists
+        cmd.Parameters.AddWithValue(gamecode);
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                return new Game(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3), reader.GetString(4));
+            }
+        }
+        // if game did not exist we create it
+        await using var cmd3 = db.CreateCommand("INSERT INTO games (player_1, player_2, players_turn, gamecode) VALUES ($1, $2, $3, $4) RETURNING id");
+        cmd3.Parameters.AddWithValue(player_1);
+        cmd3.Parameters.AddWithValue(player_2);
+        cmd3.Parameters.AddWithValue(player_1); // player 1 starts
+        cmd3.Parameters.AddWithValue(gamecode);
+        var result = await cmd3.ExecuteScalarAsync();
+        if (result != null && int.TryParse(result.ToString(), out int lastInsertedId))
+        {
+            return new Game(lastInsertedId, player_1, player_2, player_1, gamecode);
+        }
+        else
+        {
+            Console.WriteLine("Failed to retrieve the last inserted ID.");
+            return null;
+        }
     }
 
     // Process incomming GetPlayers from client
@@ -134,7 +204,7 @@ public class Actions
         return false;
     }
 
-    async Task<Tuple<int, int, int>?> CheckWin(int player, int game)
+    async Task<List<int>?> CheckWin(int player, int game)
     {
         
         // Defining wins, using a list of Tuples with indices. A Tuple is a read only, fixed size, list-type structure.
@@ -178,7 +248,11 @@ public class Actions
             {
                 Console.WriteLine($"Winning vector: {vector.Item1}, {vector.Item2}, {vector.Item3}");
                 // if we have a match, return the winning vector as a confirmation of the win
-                return vector; 
+                var winningVector = new List<int>();
+                winningVector.Add(vector.Item1);
+                winningVector.Add(vector.Item2);
+                winningVector.Add(vector.Item3);
+                return winningVector;
             }
         }
         // if we don't have a match, return null
